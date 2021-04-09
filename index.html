@@ -1,0 +1,89 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="28800">
+  <style>
+    body {
+      margin: 0px;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: auto auto auto;
+      grid-template-rows: 50vh 50vh;
+      padding: 0px;
+      margin: 0px;
+    }
+    .grid-item {
+      width: calc(100vw / 3);
+    }
+    iframe {
+      width: calc(100vw / 3);
+      height: calc(50vh);
+      border-width: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="container" class="grid-container">
+    <iframe id="calendar0" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+    <iframe id="calendar1" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+    <iframe id="calendar2" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+    <iframe id="calendar3" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+    <iframe id="calendar4" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+    <iframe id="calendar5" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+  </div>
+  
+  <script>
+    const baseURL = "https://calendar.google.com/calendar/embed?wkst=1&bgcolor=%23ffffff&showTitle=0&showNav=0&showTabs=0&showPrint=0&showCalendars=0&showTz=0&showDate=1";
+    
+    var refreshTime = 60; // default refresh time is 60 seconds
+    
+    const queryString = window.location.search; // get url ?params
+    const urlParams = new URLSearchParams(queryString);
+    
+    var calendarIDs = "";
+    
+    if (urlParams.has('calendar')) {
+      let ids = urlParams.getAll('calendar');
+      for (const id in ids) {
+        calendarIDs += "&src=" + ids[id];
+      }
+    } else {
+      document.getElementById("container").innerHTML = "<div style='margin: 50px;'><h2>Please pass valid Calendar ID(s).</h2><br />Example:<br />" + window.location.href + "<strong>?calendar=[ID]</strong><i>&calendar=[ID]...</i></div>";
+    }
+    
+    let r = Number(urlParams.get('refresh'));
+    if (r) {
+      refreshTime = r;
+    }
+    
+    function GenerateCalendar(num, year, month) {
+      let curYear = year;
+      let curMonth = month + num;
+      if (curMonth > 12) {
+        curYear += 1;
+        curMonth -= 12;
+      }
+      let dateStr = String(curYear) + String(curMonth).padStart(2, '0') + "01";
+      let fullURL = baseURL + calendarIDs + "&dates=" + dateStr + "/" + dateStr;
+      
+      document.getElementById("calendar" + String(num)).src = fullURL;
+    }
+    
+    function GenerateCalendars() {
+      let d = new Date();
+      let year = d.getFullYear();
+      let month = d.getMonth() + 1;
+      
+      for (let i = 0; i < 6; i++) {
+        window.setTimeout(function () {GenerateCalendar(i, year, month); }, 1000*i);
+      }
+    }
+    
+    if (calendarIDs != "") {
+      GenerateCalendars(); // first run on load
+      window.setInterval(GenerateCalendars, 1000 * refreshTime);
+    }
+  </script>
+</body>
+</html>
