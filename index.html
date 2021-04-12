@@ -8,55 +8,82 @@
     }
     .grid-container {
       display: grid;
-      grid-template-columns: auto auto auto;
-      grid-template-rows: 50vh 50vh;
       padding: 0px;
       margin: 0px;
-    }
-    .grid-item {
-      width: calc(100vw / 3);
-    }
-    iframe {
-      width: calc(100vw / 3);
-      height: calc(50vh);
-      border-width: 0;
     }
   </style>
 </head>
 <body>
-  <div id="container" class="grid-container">
-    <iframe id="calendar0" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
-    <iframe id="calendar1" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
-    <iframe id="calendar2" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
-    <iframe id="calendar3" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
-    <iframe id="calendar4" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
-    <iframe id="calendar5" class="grid-item" src="" frameborder="0" scrolling="no"></iframe>
+  <div id="setup" style='margin: 50px;'>
+    <h1>Setup</h1>
+    
+    <p>Enter desired settings to generate a permanent URL. Clicking Launch will take you straight there.<br />
+    You can enter several comma-separated calendar IDs to combine multiple Google Calendars.</p>
+
+    <form name="setup">
+      Calendar ID(s):<br />
+      <input type="text" name="calendarIDs" size="80" oninput="UpdateSettings()" placeholder="ID[,ID...]" /><br /><br />
+
+      Refresh interval:<br />
+      <input type="number" name="refresh" size="4" oninput="UpdateSettings()" min="10" value="60" /><br /><br />
+      
+      Columns:<br />
+      <input type="number" name="cols" size="4" oninput="UpdateSettings()" min="1" max="10" value="3" /><br /><br />
+      
+      Rows:<br />
+      <input type="number" name="rows" size="4" oninput="UpdateSettings()" min="1" max="10" value="2" /><br /><br /><br />
+      
+      <input type="button" name="submit" value="Launch" onclick="SubmitSettings()" />
+    </form>
+
+    <div id="urlOutput" style="white-space: nowrap"></div><br />
+
+    <div id="error"></div>
   </div>
+
+  <div id="container" class="grid-container"></div>
   
   <script>
-    const baseURL = "https://calendar.google.com/calendar/embed?wkst=1&bgcolor=%23ffffff&showTitle=0&showNav=0&showTabs=0&showPrint=0&showCalendars=0&showTz=0&showDate=1";
-    
+    // --------- Settings ---------
     var refreshTime = 60; // default refresh time is 60 seconds
-    
-    const queryString = window.location.search; // get url ?params
-    const urlParams = new URLSearchParams(queryString);
-    
+    var cols = 3;
+    var rows = 2;
     var calendarIDs = "";
     
-    if (urlParams.has('calendar')) {
-      let ids = urlParams.getAll('calendar');
-      for (const id in ids) {
-        calendarIDs += "&src=" + ids[id];
+    // --------- References ---------
+    const baseURL = "https://calendar.google.com/calendar/embed?wkst=1&bgcolor=%23ffffff&showTitle=0&showNav=0&showTabs=0&showPrint=0&showCalendars=0&showTz=0&showDate=1&src=";
+    const gridContainer = document.getElementById("container");
+    const queryString = window.location.search; // get url ?params
+    const urlParams = new URLSearchParams(queryString);
+    const urlOutput = document.getElementById("urlOutput");
+
+    const form = document.forms["setup"];
+    const formRefresh = form["refresh"]
+    const formCols = form["cols"]
+    const formRows = form["rows"]
+    const formCal = form["calendarIDs"]
+
+    // --------- Parse URL params ---------
+    function ParseURL() {
+      let t = Number(urlParams.get("refresh"));
+      let c = Number(urlParams.get("cols"));
+      let r = Number(urlParams.get("rows"));
+      if (t) { refreshTime = t; }
+      if (c) { cols = c; }
+      if (r) { rows = r; }
+      calendarIDs = String(urlParams.get("calendar")).replaceAll(",","&src=");
+    }
+
+    // --------- Setup ---------
+    function CreateIframes() {
+      for (let i = 0; i < (cols*rows); i++) {
+        gridContainer.innerHTML += '<iframe id="calendar' + i + '" style="width:calc(100vw / ' + cols + ');height:calc(100vh / ' + rows + ')" src="" frameborder="0" scrolling="no"></iframe>';
       }
-    } else {
-      document.getElementById("container").innerHTML = "<div style='margin: 50px;'><h2>Please pass valid Calendar ID(s).</h2><br />Example:<br />" + window.location.href + "<strong>?calendar=[ID]</strong><i>&calendar=[ID]...</i></div>";
+      gridContainer.style.gridTemplateColumns = "auto ".repeat(cols);
+      gridContainer.style.gridTemplateRows = "auto ".repeat(rows);
     }
     
-    let r = Number(urlParams.get('refresh'));
-    if (r) {
-      refreshTime = r;
-    }
-    
+    // --------- Generate/refresh single calendar iframe ---------
     function GenerateCalendar(num, year, month) {
       let curYear = year;
       let curMonth = month + num;
@@ -67,22 +94,56 @@
       let dateStr = String(curYear) + String(curMonth).padStart(2, '0') + "01";
       let fullURL = baseURL + calendarIDs + "&dates=" + dateStr + "/" + dateStr;
       
-      document.getElementById("calendar" + String(num)).src = fullURL;
+      document.getElementById("calendar" + String(num)).contentWindow.location.replace(fullURL);
     }
     
+    // --------- Generate/refresh all calendars ---------
     function GenerateCalendars() {
       let d = new Date();
       let year = d.getFullYear();
       let month = d.getMonth() + 1;
       
-      for (let i = 0; i < 6; i++) {
-        window.setTimeout(function () {GenerateCalendar(i, year, month); }, 1000*i);
+      for (let i = 0; i < (cols*rows); i++) {
+        window.setTimeout(function () {GenerateCalendar(i, year, month); }, 300*i);
       }
     }
+
+    function UpdateSettings() {
+      let t = formRefresh.valueAsNumber;
+      let c = formCols.valueAsNumber;
+      let r = formRows.valueAsNumber;
+      let cal = formCal.value.replaceAll(" ", "");
+
+      if (t) { urlParams.set('refresh', t); }
+      if (c) { urlParams.set('cols', c); }
+      if (r) { urlParams.set('rows', r); }
+      urlParams.set('calendar', cal);
+
+      urlOutput.innerHTML = "Output URL:<br />" + window.location.origin + window.location.pathname + "?" + decodeURIComponent(urlParams.toString());
+    }
+
+    function SubmitSettings() {
+      if (!urlParams.get("calendar")) {
+        document.getElementById("error").innerHTML = "Enter at least one Calendar ID.";
+        return;
+      }
+
+      window.location.search = urlParams;
+    }
+
+    window.onhashchange = function(event) {
+      alert(event);
+    }
     
-    if (calendarIDs != "") {
+    ParseURL();
+    if (calendarIDs != "null" && calendarIDs != "") {
+      document.getElementById("setup").style.display = "none";
+      CreateIframes();
+
       GenerateCalendars(); // first run on load
       window.setInterval(GenerateCalendars, 1000 * refreshTime);
+    } else {
+      UpdateSettings();
     }
   </script>
 </body>
